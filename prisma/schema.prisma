@@ -17,12 +17,15 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   username  String
-  password  String // store hashed passwords
+  password  String // Store hashed passwords
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relation: a user can have many chatbots
-  chatbots Chatbot[]
+  // Relations
+  orders        Order[]
+  payments      Payment[]
+  subscriptions Subscription[]
+  chatbots      Chatbot[]
 }
 
 model Chatbot {
@@ -39,4 +42,75 @@ model Chatbot {
   // Relation: each chatbot is owned by one user
   user   User?   @relation(fields: [userId], references: [id])
   userId String?
+}
+
+model Order {
+  id        String      @id @default(uuid())
+  user      User        @relation(fields: [userId], references: [id])
+  userId    String
+  amount    Float
+  status    OrderStatus @default(PENDING) // Tracks overall order state
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relations
+  payments Payment[]
+}
+
+model Payment {
+  id        String        @id @default(uuid())
+  user      User          @relation(fields: [userId], references: [id])
+  userId    String
+  order     Order         @relation(fields: [orderId], references: [id])
+  orderId   String
+  status    PaymentStatus
+  attempts  Int           @default(1) // Tracks payment retries for this order
+  amount    Float
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model Subscription {
+  id        String             @id @default(uuid())
+  user      User               @relation(fields: [userId], references: [id])
+  userId    String
+  plan      SubscriptionPlan   @relation(fields: [planId], references: [id])
+  planId    String
+  status    SubscriptionStatus @default(ACTIVE)
+  startedAt DateTime           @default(now())
+  expiresAt DateTime // Set expiration based on plan duration
+  updatedAt DateTime           @updatedAt
+}
+
+model SubscriptionPlan {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  price       Float    @default(0) // Price of the plan (0 for free plans)
+  duration    Int // Duration in days (e.g., 30 for monthly plans)
+  description String? // Optional description of the plan
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relation: Plans can have multiple subscriptions
+  subscriptions Subscription[]
+}
+
+enum OrderStatus {
+  PENDING // Order placed, waiting for payment
+  PAID // Payment successful
+  FAILED // Order failed due to unsuccessful payments
+  REFUNDED // Order refunded
+}
+
+enum PaymentStatus {
+  PENDING // Payment initiated but not completed
+  SUCCESSFUL // Payment successful
+  FAILED // Payment failed
+  REFUNDED // Payment refunded
+}
+
+enum SubscriptionStatus {
+  ACTIVE // Subscription is active
+  CANCELED // User canceled subscription
+  EXPIRED // Subscription expired
 }
